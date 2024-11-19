@@ -15,12 +15,15 @@ pipeline {
         }
 
 
-         stage('Get Git Information') {
+        stage('Get Git Information') {
             steps {
                 script {
                     // Retrieve the current commit hash and branch name
                     env.GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
                     env.GIT_BRANCH = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                    
+                    // Sanitize the branch name to remove invalid characters
+                    env.SAFE_BRANCH = env.GIT_BRANCH.replaceAll('/', '-')
                 }
             }
         }
@@ -29,7 +32,7 @@ pipeline {
             steps {
                 script {
                     // Build the Docker image
-                    def tag = "${env.GIT_BRANCH}-${env.GIT_COMMIT}"
+                    def tag = "${env.SAFE_BRANCH}-${env.GIT_COMMIT}"
                     sh "docker build -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${tag} ."
                 }
             }
@@ -50,7 +53,7 @@ pipeline {
             steps {
                 script {
                     // Push the Docker image to the registry
-                    def tag = "${env.GIT_BRANCH}-${env.GIT_COMMIT}"
+                    def tag = "${env.SAFE_BRANCH}-${env.GIT_COMMIT}"
                     sh "docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:${tag}"
                 }
             }
