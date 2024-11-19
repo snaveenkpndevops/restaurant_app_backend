@@ -2,10 +2,8 @@ pipeline {
     agent any
 
     environment {
-        
-        DOCKER_REGISTRY = 'docker.io'  
-        IMAGE_NAME = 'your_image_name'  
-        IMAGE_TAG = "${env.BUILD_ID}"  
+        DOCKER_REGISTRY = "${env.docker_registry}"
+        IMAGE_NAME = 'restaurant_backend'  
     }
 
     stages {
@@ -16,11 +14,23 @@ pipeline {
             }
         }
 
+
+         stage('Get Git Information') {
+            steps {
+                script {
+                    // Retrieve the current commit hash and branch name
+                    env.GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    env.GIT_BRANCH = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
                     // Build the Docker image
-                    sh "docker build -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                    def tag = "${env.GIT_BRANCH}-${env.GIT_COMMIT}"
+                    sh "docker build -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${tag} ."
                 }
             }
         }
@@ -40,16 +50,10 @@ pipeline {
             steps {
                 script {
                     // Push the Docker image to the registry
-                    sh "docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+                    def tag = "${env.GIT_BRANCH}-${env.GIT_COMMIT}"
+                    sh "docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:${tag}"
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            // Clean up, remove unused images
-            sh "docker rmi ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
         }
     }
 }
