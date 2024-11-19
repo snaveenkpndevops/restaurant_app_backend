@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+
+    environment {
+        
+        DOCKER_REGISTRY = 'docker.io'  
+        IMAGE_NAME = 'your_image_name'  
+        IMAGE_TAG = "${env.BUILD_ID}"  
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                // Checkout the code from your repository
+                git branch: 'main', credentialsId: '3d128c05-7ca7-4fc1-af3d-7addda3106b5', url: 'https://github.com/snaveenkpndevops/restaurant_app_backend.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build the Docker image
+                    sh "docker build -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                }
+            }
+        }
+
+        stage('Login to Docker Hub') {
+            steps {
+                script {
+                    // Login to Docker Hub (or your private registry)
+                    withCredentials([usernamePassword(credentialsId: '6bd67041-72c9-4b57-a182-815691c94aac', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    // Push the Docker image to the registry
+                    sh "docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            // Clean up, remove unused images
+            sh "docker rmi ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+        }
+    }
+}
